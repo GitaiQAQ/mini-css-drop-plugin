@@ -98,12 +98,7 @@ class CssModule extends webpack.Module {
 }
 
 class CssModuleFactory {
-  create(
-    {
-      dependencies: [dependency],
-    },
-    callback
-  ) {
+  create({ dependencies: [dependency] }, callback) {
     callback(null, new CssModule(dependency));
   }
 }
@@ -266,116 +261,19 @@ class MiniCssExtractPlugin {
         }
         return source;
       });
-      mainTemplate.hooks.requireEnsure.tap(
-        pluginName,
-        (source, chunk, hash) => {
-          const chunkMap = this.getCssChunkObject(chunk);
-          if (Object.keys(chunkMap).length > 0) {
-            const chunkMaps = chunk.getChunkMaps();
-            const linkHrefPath = mainTemplate.getAssetPath(
-              JSON.stringify(this.options.chunkFilename),
-              {
-                hash: `" + ${mainTemplate.renderCurrentHashCode(hash)} + "`,
-                hashWithLength: (length) =>
-                  `" + ${mainTemplate.renderCurrentHashCode(hash, length)} + "`,
-                chunk: {
-                  id: '" + chunkId + "',
-                  hash: `" + ${JSON.stringify(chunkMaps.hash)}[chunkId] + "`,
-                  hashWithLength(length) {
-                    const shortChunkHashMap = Object.create(null);
-                    for (const chunkId of Object.keys(chunkMaps.hash)) {
-                      if (typeof chunkMaps.hash[chunkId] === 'string') {
-                        shortChunkHashMap[chunkId] = chunkMaps.hash[
-                          chunkId
-                        ].substring(0, length);
-                      }
-                    }
-                    return `" + ${JSON.stringify(
-                      shortChunkHashMap
-                    )}[chunkId] + "`;
-                  },
-                  contentHash: {
-                    [MODULE_TYPE]: `" + ${JSON.stringify(
-                      chunkMaps.contentHash[MODULE_TYPE]
-                    )}[chunkId] + "`,
-                  },
-                  contentHashWithLength: {
-                    [MODULE_TYPE]: (length) => {
-                      const shortContentHashMap = {};
-                      const contentHash = chunkMaps.contentHash[MODULE_TYPE];
-                      for (const chunkId of Object.keys(contentHash)) {
-                        if (typeof contentHash[chunkId] === 'string') {
-                          shortContentHashMap[chunkId] = contentHash[
-                            chunkId
-                          ].substring(0, length);
-                        }
-                      }
-                      return `" + ${JSON.stringify(
-                        shortContentHashMap
-                      )}[chunkId] + "`;
-                    },
-                  },
-                  name: `" + (${JSON.stringify(
-                    chunkMaps.name
-                  )}[chunkId]||chunkId) + "`,
-                },
-                contentHashType: MODULE_TYPE,
-              }
-            );
-            return Template.asString([
-              source,
-              '',
-              `// ${pluginName} CSS loading`,
-              `var cssChunks = ${JSON.stringify(chunkMap)};`,
-              'if(installedCssChunks[chunkId]) promises.push(installedCssChunks[chunkId]);',
-              'else if(installedCssChunks[chunkId] !== 0 && cssChunks[chunkId]) {',
-              Template.indent([
-                'promises.push(installedCssChunks[chunkId] = new Promise(function(resolve, reject) {',
-                Template.indent([
-                  `var href = ${linkHrefPath};`,
-                  `var fullhref = ${mainTemplate.requireFn}.p + href;`,
-                  'var existingLinkTags = document.getElementsByTagName("link");',
-                  'for(var i = 0; i < existingLinkTags.length; i++) {',
-                  Template.indent([
-                    'var tag = existingLinkTags[i];',
-                    'var dataHref = tag.getAttribute("data-href") || tag.getAttribute("href");',
-                    'if(tag.rel === "stylesheet" && (dataHref === href || dataHref === fullhref)) return resolve();',
-                  ]),
-                  '}',
-                  'var existingStyleTags = document.getElementsByTagName("style");',
-                  'for(var i = 0; i < existingStyleTags.length; i++) {',
-                  Template.indent([
-                    'var tag = existingStyleTags[i];',
-                    'var dataHref = tag.getAttribute("data-href");',
-                    'if(dataHref === href || dataHref === fullhref) return resolve();',
-                  ]),
-                  '}',
-                  'var linkTag = document.createElement("link");',
-                  'linkTag.rel = "stylesheet";',
-                  'linkTag.type = "text/css";',
-                  'linkTag.onload = resolve;',
-                  'linkTag.onerror = function(event) {',
-                  Template.indent([
-                    'var request = event && event.target && event.target.src || fullhref;',
-                    'var err = new Error("Loading CSS chunk " + chunkId + " failed.\\n(" + request + ")");',
-                    'err.request = request;',
-                    'reject(err);',
-                  ]),
-                  '};',
-                  'linkTag.href = fullhref;',
-                  'var head = document.getElementsByTagName("head")[0];',
-                  'head.appendChild(linkTag);',
-                ]),
-                '}).then(function() {',
-                Template.indent(['installedCssChunks[chunkId] = 0;']),
-                '}));',
-              ]),
-              '}',
-            ]);
-          }
-          return source;
+      mainTemplate.hooks.requireEnsure.tap(pluginName, (source, chunk) => {
+        const chunkMap = this.getCssChunkObject(chunk);
+        if (Object.keys(chunkMap).length > 0) {
+          return Template.asString([
+            source,
+            '',
+            `// ${pluginName} CSS loading`,
+            `var cssChunks = ${JSON.stringify(chunkMap)};`,
+            'if(cssChunks[chunkId]) promises.push(0);',
+          ]);
         }
-      );
+        return source;
+      });
     });
   }
 
